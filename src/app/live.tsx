@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   SafeAreaView,
   StyleSheet,
@@ -6,86 +6,529 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { CameraView, useCameraPermissions } from "expo-camera";
 import { router } from "expo-router";
 import {
-  Circle,
-  HardDrive,
   ArrowLeft,
+  Camera,
+  HardDrive,
+  Settings,
 } from "lucide-react-native";
 
+// ---------------------------------------------------------
+// TYPES
+// ---------------------------------------------------------
+
+type Point = {
+  x: number;
+  y: number;
+};
+
+type Marker = {
+  id: number;
+  corners: [Point, Point, Point, Point];
+  center: Point;
+  velocityX: number;
+  velocityY: number;
+  direction: string;
+};
+
+// ---------------------------------------------------------
+// TEMPORARY MOCK ARUCO MARKER
+// ---------------------------------------------------------
+//
+// This is only for testing the UI.
+//
+// Later:
+//
+// Camera
+//   ↓
+// Native OpenCV
+//   ↓
+// ArUco Detector
+//   ↓
+// Marker data
+//   ↓
+// This UI
+//
+// ---------------------------------------------------------
+
+const MOCK_MARKER: Marker = {
+  id: 23,
+
+  corners: [
+    { x: 80, y: 150 },
+    { x: 230, y: 150 },
+    { x: 230, y: 300 },
+    { x: 80, y: 300 },
+  ],
+
+  center: {
+    x: 155,
+    y: 225,
+  },
+
+  velocityX: 32,
+  velocityY: -4,
+
+  direction: "RIGHT",
+};
+
+// ---------------------------------------------------------
+// MAIN SCREEN
+// ---------------------------------------------------------
+
 export default function LiveScreen() {
+  const [permission, requestPermission] = useCameraPermissions();
+
+  const [recording, setRecording] = useState(false);
+
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  const [markers, setMarkers] = useState<Marker[]>([]);
+
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // -------------------------------------------------------
+  // TIMER
+  // -------------------------------------------------------
+
+  useEffect(() => {
+    if (recording) {
+      timerRef.current = setInterval(() => {
+        setElapsedSeconds((previous) => previous + 1);
+      }, 1000);
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [recording]);
+
+  // -------------------------------------------------------
+  // FORMAT TIMER
+  // -------------------------------------------------------
+
+  const formatTime = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+
+    const minutes = Math.floor((seconds % 3600) / 60);
+
+    const secs = seconds % 60;
+
+    return (
+      `${String(hours).padStart(2, "0")}:` +
+      `${String(minutes).padStart(2, "0")}:` +
+      `${String(secs).padStart(2, "0")}`
+    );
+  };
+
+  // -------------------------------------------------------
+  // RECORD BUTTON
+  // -------------------------------------------------------
+
+  const handleRecord = async () => {
+    // Make sure camera permission exists
+    if (!permission?.granted) {
+      const result = await requestPermission();
+
+      if (!result.granted) {
+        return;
+      }
+    }
+
+    // START RECORDING
+    if (!recording) {
+      setRecording(true);
+
+      setElapsedSeconds(0);
+
+      // Temporary fake marker
+      setMarkers([MOCK_MARKER]);
+
+      return;
+    }
+
+    // STOP RECORDING
+    setRecording(false);
+
+    // Remove temporary marker
+    setMarkers([]);
+  };
+
+  // -------------------------------------------------------
+  // CHECKING PERMISSION
+  // -------------------------------------------------------
+
+  if (!permission) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.permissionContainer}>
+          <Camera size={64} color="#999999" />
+
+          <Text style={styles.permissionTitle}>
+            Checking Camera Permission
+          </Text>
+
+          <Text style={styles.permissionDescription}>
+            Please wait while we check camera access.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // -------------------------------------------------------
+  // CAMERA PERMISSION DENIED
+  // -------------------------------------------------------
+
+  if (!permission.granted) {
+    return (
+      <SafeAreaView style={styles.container}>
+
+        {/* HEADER */}
+
+        <View style={styles.header}>
+
+          <TouchableOpacity onPress={() => router.back()}>
+            <ArrowLeft size={28} color="#111111" />
+          </TouchableOpacity>
+
+          <Text style={styles.headerTitle}>
+            Live Capture
+          </Text>
+
+          <View style={styles.headerSpacer} />
+
+        </View>
+
+        {/* PERMISSION CONTENT */}
+
+        <View style={styles.permissionContainer}>
+
+          <View style={styles.cameraIconCircle}>
+            <Camera size={42} color="#111111" />
+          </View>
+
+          <Text style={styles.permissionTitle}>
+            Camera Access Needed
+          </Text>
+
+          <Text style={styles.permissionDescription}>
+            Allow ArUco to access your camera so you can
+            detect and track markers.
+          </Text>
+
+          <TouchableOpacity
+            style={styles.permissionButton}
+            onPress={requestPermission}
+          >
+            <Text style={styles.permissionButtonText}>
+              Allow Camera Access
+            </Text>
+          </TouchableOpacity>
+
+        </View>
+
+      </SafeAreaView>
+    );
+  }
+
+  // -------------------------------------------------------
+  // MAIN SCREEN
+  // -------------------------------------------------------
+
   return (
     <SafeAreaView style={styles.container}>
 
-      {/* Header */}
+      {/* ================================================= */}
+      {/* HEADER */}
+      {/* ================================================= */}
 
       <View style={styles.header}>
+
         <TouchableOpacity onPress={() => router.back()}>
-          <ArrowLeft size={28} color="#111" />
+          <ArrowLeft size={28} color="#111111" />
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>Live Capture</Text>
+        <Text style={styles.headerTitle}>
+          Live Capture
+        </Text>
 
-        <View style={{ width: 28 }} />
+        <TouchableOpacity>
+          <Settings size={25} color="#111111" />
+        </TouchableOpacity>
+
       </View>
 
-      {/* Preview */}
+      {/* ================================================= */}
+      {/* CAMERA PREVIEW */}
+      {/* ================================================= */}
 
       <View style={styles.preview}>
 
-        <View style={styles.previewHeader}>
+        {/* CAMERA */}
 
-          <Text style={styles.fps}>60 FPS</Text>
+        <CameraView
+          style={styles.camera}
+          facing="back"
+        />
 
-          <View style={styles.sensorBadge}>
-            <Text style={styles.sensorText}>8/8 sensors</Text>
+        {/* CAMERA OVERLAY */}
+
+        <View
+          style={styles.cameraOverlay}
+          pointerEvents="none"
+        >
+
+          {/* --------------------------------------------- */}
+          {/* TOP INFORMATION */}
+          {/* --------------------------------------------- */}
+
+          <View style={styles.previewHeader}>
+
+            {/* FPS */}
+
+            <View style={styles.fpsBadge}>
+
+              <View style={styles.liveDot} />
+
+              <Text style={styles.fps}>
+                60 FPS
+              </Text>
+
+            </View>
+
+            {/* MARKER COUNT */}
+
+            <View style={styles.sensorBadge}>
+
+              <Text style={styles.sensorText}>
+                {markers.length}{" "}
+                {markers.length === 1
+                  ? "marker"
+                  : "markers"}
+              </Text>
+
+            </View>
+
           </View>
 
-        </View>
+          {/* --------------------------------------------- */}
+          {/* ARUCO MARKERS */}
+          {/* --------------------------------------------- */}
 
-        {/* Stick Figure Placeholder */}
+          {markers.map((marker) => {
 
-        <View style={styles.figureContainer}>
+            const markerWidth =
+              marker.corners[1].x -
+              marker.corners[0].x;
 
-          <Circle size={18} color="white" />
+            const markerHeight =
+              marker.corners[2].y -
+              marker.corners[0].y;
 
-          <View style={styles.body} />
+            return (
+              <View
+                key={marker.id}
+                style={[
+                  styles.markerBox,
+                  {
+                    left: marker.corners[0].x,
+                    top: marker.corners[0].y,
+                    width: markerWidth,
+                    height: markerHeight,
+                  },
+                ]}
+              >
 
-          <View style={styles.armRow}>
-            <View style={styles.arm} />
-            <View style={styles.arm} />
-          </View>
+                {/* MARKER ID */}
 
-          <View style={styles.legRow}>
-            <View style={styles.leg} />
-            <View style={styles.leg} />
-          </View>
+                <View style={styles.markerLabel}>
+
+                  <Text style={styles.markerLabelText}>
+                    ID: {marker.id}
+                  </Text>
+
+                </View>
+
+                {/* TOP LEFT */}
+
+                <View
+                  style={[
+                    styles.cornerDot,
+                    styles.topLeft,
+                  ]}
+                />
+
+                {/* TOP RIGHT */}
+
+                <View
+                  style={[
+                    styles.cornerDot,
+                    styles.topRight,
+                  ]}
+                />
+
+                {/* BOTTOM LEFT */}
+
+                <View
+                  style={[
+                    styles.cornerDot,
+                    styles.bottomLeft,
+                  ]}
+                />
+
+                {/* BOTTOM RIGHT */}
+
+                <View
+                  style={[
+                    styles.cornerDot,
+                    styles.bottomRight,
+                  ]}
+                />
+
+              </View>
+            );
+          })}
+
+          {/* --------------------------------------------- */}
+          {/* TRACKING INFORMATION */}
+          {/* --------------------------------------------- */}
+
+          {markers.length > 0 && (
+            <View style={styles.trackingCard}>
+
+              <Text style={styles.trackingTitle}>
+                Tracking
+              </Text>
+
+              {/* ID */}
+
+              <View style={styles.trackingRow}>
+
+                <Text style={styles.trackingLabel}>
+                  ID
+                </Text>
+
+                <Text style={styles.trackingValue}>
+                  {markers[0].id}
+                </Text>
+
+              </View>
+
+              {/* POSITION */}
+
+              <View style={styles.trackingRow}>
+
+                <Text style={styles.trackingLabel}>
+                  Position
+                </Text>
+
+                <Text style={styles.trackingValue}>
+                  {Math.round(markers[0].center.x)},{" "}
+                  {Math.round(markers[0].center.y)}
+                </Text>
+
+              </View>
+
+              {/* VELOCITY */}
+
+              <View style={styles.trackingRow}>
+
+                <Text style={styles.trackingLabel}>
+                  Velocity
+                </Text>
+
+                <Text style={styles.trackingValue}>
+                  {markers[0].velocityX},{" "}
+                  {markers[0].velocityY} px/s
+                </Text>
+
+              </View>
+
+              {/* DIRECTION */}
+
+              <View style={styles.trackingRow}>
+
+                <Text style={styles.trackingLabel}>
+                  Direction
+                </Text>
+
+                <Text style={styles.directionValue}>
+                  {markers[0].direction}
+                </Text>
+
+              </View>
+
+            </View>
+          )}
 
         </View>
 
       </View>
 
-      {/* Timer */}
+      {/* ================================================= */}
+      {/* TIMER */}
+      {/* ================================================= */}
 
-      <Text style={styles.timer}>00:00:12</Text>
+      <Text style={styles.timer}>
+        {formatTime(elapsedSeconds)}
+      </Text>
 
-      {/* Record */}
+      {/* ================================================= */}
+      {/* RECORD BUTTON */}
+      {/* ================================================= */}
 
-      <TouchableOpacity style={styles.recordButton}>
-        <View style={styles.recordCircle} />
+      <TouchableOpacity
+        style={styles.recordButton}
+        onPress={handleRecord}
+        activeOpacity={0.8}
+      >
+
+        <View style={styles.recordCircle}>
+
+          {recording ? (
+            <View style={styles.stopSquare} />
+          ) : (
+            <View style={styles.innerRecordCircle} />
+          )}
+
+        </View>
+
       </TouchableOpacity>
 
-      {/* Storage */}
+      {/* RECORD LABEL */}
+
+      <Text style={styles.recordLabel}>
+        {recording
+          ? "Stop Recording"
+          : "Record"}
+      </Text>
+
+      {/* ================================================= */}
+      {/* STORAGE */}
+      {/* ================================================= */}
 
       <View style={styles.storageCard}>
 
-        <HardDrive size={22} color="#555" />
+        <HardDrive
+          size={22}
+          color="#555555"
+        />
 
         <Text style={styles.storageTitle}>
           Storage Remaining
         </Text>
 
-        <View style={{ flex: 1 }} />
+        <View style={styles.storageSpacer} />
 
         <Text style={styles.storageValue}>
           3.8 GB
@@ -97,7 +540,15 @@ export default function LiveScreen() {
   );
 }
 
+// =========================================================
+// STYLES
+// =========================================================
+
 const styles = StyleSheet.create({
+
+  // -------------------------------------------------------
+  // MAIN CONTAINER
+  // -------------------------------------------------------
 
   container: {
     flex: 1,
@@ -105,136 +556,467 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
 
+  // -------------------------------------------------------
+  // HEADER
+  // -------------------------------------------------------
+
   header: {
     marginTop: 10,
+    marginBottom: 20,
+
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 20,
   },
 
   headerTitle: {
     fontSize: 30,
     fontWeight: "700",
-    color: "#111",
+    color: "#111111",
   },
 
-  preview: {
-    backgroundColor: "#111",
-    borderRadius: 30,
-    height: 500,
-    padding: 20,
+  headerSpacer: {
+    width: 28,
   },
+
+  // -------------------------------------------------------
+  // CAMERA PREVIEW
+  // -------------------------------------------------------
+
+  preview: {
+    height: 500,
+
+    backgroundColor: "#111111",
+
+    borderRadius: 30,
+
+    overflow: "hidden",
+
+    position: "relative",
+  },
+
+  camera: {
+    position: "absolute",
+
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+
+  // -------------------------------------------------------
+  // CAMERA OVERLAY
+  // -------------------------------------------------------
+
+  cameraOverlay: {
+    position: "absolute",
+
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+
+    padding: 16,
+  },
+
+  // -------------------------------------------------------
+  // PREVIEW HEADER
+  // -------------------------------------------------------
 
   previewHeader: {
     flexDirection: "row",
+
     justifyContent: "space-between",
+
     alignItems: "center",
+  },
+
+  fpsBadge: {
+    flexDirection: "row",
+
+    alignItems: "center",
+
+    backgroundColor: "rgba(20,20,20,0.75)",
+
+    paddingHorizontal: 14,
+
+    paddingVertical: 9,
+
+    borderRadius: 18,
+  },
+
+  liveDot: {
+    width: 8,
+
+    height: 8,
+
+    borderRadius: 4,
+
+    backgroundColor: "#32CD65",
+
+    marginRight: 7,
   },
 
   fps: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "600",
+    color: "#FFFFFF",
+
+    fontSize: 15,
+
+    fontWeight: "700",
   },
 
   sensorBadge: {
-    backgroundColor: "#222",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    backgroundColor: "rgba(20,20,20,0.75)",
+
+    paddingHorizontal: 14,
+
+    paddingVertical: 9,
+
+    borderRadius: 18,
   },
 
   sensorText: {
-    color: "white",
+    color: "#FFFFFF",
+
+    fontSize: 15,
+
+    fontWeight: "600",
+  },
+
+  // -------------------------------------------------------
+  // ARUCO MARKER BOX
+  // -------------------------------------------------------
+
+  markerBox: {
+    position: "absolute",
+
+    borderWidth: 3,
+
+    borderColor: "#32FF5A",
+  },
+
+  markerLabel: {
+    position: "absolute",
+
+    left: -2,
+
+    top: -38,
+
+    backgroundColor: "#32FF5A",
+
+    paddingHorizontal: 10,
+
+    paddingVertical: 6,
+
+    borderRadius: 8,
+  },
+
+  markerLabelText: {
+    color: "#111111",
+
+    fontSize: 15,
+
+    fontWeight: "800",
+  },
+
+  // -------------------------------------------------------
+  // MARKER CORNER DOTS
+  // -------------------------------------------------------
+
+  cornerDot: {
+    position: "absolute",
+
+    width: 12,
+
+    height: 12,
+
+    borderRadius: 6,
+
+    backgroundColor: "#32FF5A",
+  },
+
+  topLeft: {
+    left: -7,
+
+    top: -7,
+  },
+
+  topRight: {
+    right: -7,
+
+    top: -7,
+  },
+
+  bottomLeft: {
+    left: -7,
+
+    bottom: -7,
+  },
+
+  bottomRight: {
+    right: -7,
+
+    bottom: -7,
+  },
+
+  // -------------------------------------------------------
+  // TRACKING CARD
+  // -------------------------------------------------------
+
+  trackingCard: {
+    position: "absolute",
+
+    right: 16,
+
+    bottom: 16,
+
+    width: 185,
+
+    backgroundColor: "rgba(15,15,15,0.88)",
+
+    borderRadius: 16,
+
+    padding: 14,
+  },
+
+  trackingTitle: {
+    color: "#FFFFFF",
+
     fontSize: 16,
+
+    fontWeight: "800",
+
+    marginBottom: 8,
   },
 
-  figureContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  body: {
-    width: 6,
-    height: 110,
-    backgroundColor: "white",
-    marginTop: 8,
-  },
-
-  armRow: {
+  trackingRow: {
     flexDirection: "row",
-    marginTop: -70,
+
+    justifyContent: "space-between",
+
+    marginTop: 5,
   },
 
-  arm: {
-    width: 90,
-    height: 5,
-    backgroundColor: "white",
-    marginHorizontal: 5,
+  trackingLabel: {
+    color: "#BDBDBD",
+
+    fontSize: 12,
   },
 
-  legRow: {
-    flexDirection: "row",
-    marginTop: 60,
+  trackingValue: {
+    color: "#FFFFFF",
+
+    fontSize: 12,
+
+    fontWeight: "600",
   },
 
-  leg: {
-    width: 6,
-    height: 90,
-    backgroundColor: "white",
-    marginHorizontal: 22,
-    transform: [{ rotate: "18deg" }],
+  directionValue: {
+    color: "#32FF5A",
+
+    fontSize: 12,
+
+    fontWeight: "800",
   },
+
+  // -------------------------------------------------------
+  // TIMER
+  // -------------------------------------------------------
 
   timer: {
-    marginTop: 24,
+    marginTop: 20,
+
     alignSelf: "center",
+
     fontSize: 42,
+
     fontWeight: "700",
-    color: "#111",
+
+    color: "#111111",
   },
+
+  // -------------------------------------------------------
+  // RECORD BUTTON
+  // -------------------------------------------------------
 
   recordButton: {
     width: 90,
+
     height: 90,
+
     borderRadius: 45,
-    backgroundColor: "#111",
+
+    backgroundColor: "#111111",
+
     alignSelf: "center",
+
     justifyContent: "center",
+
     alignItems: "center",
-    marginTop: 24,
+
+    marginTop: 16,
   },
 
   recordCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 58,
+
+    height: 58,
+
+    borderRadius: 29,
+
     backgroundColor: "#E53935",
+
+    justifyContent: "center",
+
+    alignItems: "center",
   },
 
+  innerRecordCircle: {
+    width: 30,
+
+    height: 30,
+
+    borderRadius: 15,
+
+    backgroundColor: "#FFFFFF",
+  },
+
+  stopSquare: {
+    width: 22,
+
+    height: 22,
+
+    borderRadius: 4,
+
+    backgroundColor: "#FFFFFF",
+  },
+
+  recordLabel: {
+    alignSelf: "center",
+
+    marginTop: 6,
+
+    fontSize: 14,
+
+    fontWeight: "600",
+
+    color: "#555555",
+  },
+
+  // -------------------------------------------------------
+  // STORAGE CARD
+  // -------------------------------------------------------
+
   storageCard: {
-    marginTop: 30,
-    backgroundColor: "white",
+    marginTop: 18,
+
+    marginBottom: 10,
+
+    backgroundColor: "#FFFFFF",
+
     borderRadius: 22,
+
     padding: 20,
+
     flexDirection: "row",
+
     alignItems: "center",
+
     borderWidth: 1,
+
     borderColor: "#E8E8E8",
   },
 
   storageTitle: {
     marginLeft: 12,
-    fontSize: 20,
-    color: "#555",
+
+    fontSize: 18,
+
+    color: "#555555",
+  },
+
+  storageSpacer: {
+    flex: 1,
   },
 
   storageValue: {
-    fontSize: 22,
+    fontSize: 20,
+
     fontWeight: "700",
-    color: "#111",
+
+    color: "#111111",
+  },
+
+  // -------------------------------------------------------
+  // PERMISSION SCREEN
+  // -------------------------------------------------------
+
+  permissionContainer: {
+    flex: 1,
+
+    justifyContent: "center",
+
+    alignItems: "center",
+
+    paddingHorizontal: 25,
+  },
+
+  cameraIconCircle: {
+    width: 90,
+
+    height: 90,
+
+    borderRadius: 45,
+
+    backgroundColor: "#EAEAEA",
+
+    justifyContent: "center",
+
+    alignItems: "center",
+
+    marginBottom: 25,
+  },
+
+  permissionTitle: {
+    fontSize: 25,
+
+    fontWeight: "700",
+
+    color: "#111111",
+
+    textAlign: "center",
+
+    marginBottom: 12,
+  },
+
+  permissionDescription: {
+    fontSize: 16,
+
+    lineHeight: 24,
+
+    color: "#666666",
+
+    textAlign: "center",
+
+    marginBottom: 28,
+  },
+
+  permissionButton: {
+    backgroundColor: "#111111",
+
+    paddingHorizontal: 30,
+
+    paddingVertical: 16,
+
+    borderRadius: 14,
+  },
+
+  permissionButtonText: {
+    color: "#FFFFFF",
+
+    fontSize: 16,
+
+    fontWeight: "700",
   },
 
 });
