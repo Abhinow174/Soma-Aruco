@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -7,15 +7,37 @@ import {
   View,
 } from "react-native";
 import { router } from "expo-router";
-
+import { Paths } from "expo-file-system";
 import StatusCard from "../components/StatusCard";
 import DenoiserCard from "../components/DenoiserCard";
 import PrimaryButton from "../components/PrimaryButton";
 import SecondaryButton from "../components/SecondaryButton";
 import SmallStatCard from "../components/SmallStatCard";
 import BottomBar from "../components/BottomBar";
+import { SessionRecorder } from "../aruco/session-recorder";
 
 export default function HomeScreen() {
+  const [sessionCount, setSessionCount] = useState("0");
+  const [freeStorage, setFreeStorage] = useState("3.8 GB");
+
+  useEffect(() => {
+    try {
+      const recorder = new SessionRecorder();
+      const ids = recorder.getSessionIds();
+      setSessionCount(String(ids.length));
+    } catch {
+      setSessionCount("0");
+    }
+
+    try {
+      const bytes = Paths.availableDiskSpace;
+      if (bytes > 0) {
+        const gb = bytes / (1024 * 1024 * 1024);
+        setFreeStorage(`${gb.toFixed(1)} GB`);
+      }
+    } catch {}
+  }, []);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.body}>
@@ -23,23 +45,15 @@ export default function HomeScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scroll}
         >
-          {/* Greeting */}
-
           <Text style={styles.greeting}>Good evening</Text>
 
           <Text style={styles.heading}>
             Ready to{"\n"}capture
           </Text>
 
-          {/* Status */}
-
           <StatusCard />
 
-          {/* Denoiser */}
-
           <DenoiserCard />
-
-          {/* Buttons */}
 
           <PrimaryButton
             title="Start calibration"
@@ -51,19 +65,17 @@ export default function HomeScreen() {
             onPress={() => router.push("/live")}
           />
 
-          {/* Stats */}
-
           <View style={styles.statsRow}>
             <SmallStatCard
               title="Sessions"
-              value="12"
+              value={sessionCount}
             />
 
             <View style={{ width: 16 }} />
 
             <SmallStatCard
               title="Storage free"
-              value="3.8 GB"
+              value={freeStorage}
             />
           </View>
         </ScrollView>

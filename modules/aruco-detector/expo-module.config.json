@@ -1,0 +1,10 @@
+{
+  "name": "ArucoDetector",
+  "platforms": ["ios", "android"],
+  "ios": {
+    "modules": ["ArucoDetectorModule"]
+  },
+  "android": {
+    "modules": ["com.abhinow17.aruco.ArucoDetectorModule"]
+  }
+}

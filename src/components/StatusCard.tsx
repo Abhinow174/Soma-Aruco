@@ -1,10 +1,15 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 
 export default function StatusCard() {
   return (
-    <TouchableOpacity activeOpacity={0.9} style={styles.card}>
+    <TouchableOpacity
+      activeOpacity={0.85}
+      style={styles.card}
+      onPress={() => router.push("/calibration")}
+    >
       <View style={styles.left}>
         <View style={styles.iconContainer}>
           <View style={styles.blueDot} />
@@ -31,16 +36,12 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     paddingHorizontal: 20,
     paddingVertical: 18,
-
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-
     marginBottom: 18,
-
     borderWidth: 1,
     borderColor: "#ECECEC",
-
     shadowColor: "#000",
     shadowOpacity: 0.05,
     shadowRadius: 12,
@@ -48,7 +49,6 @@ const styles = StyleSheet.create({
       width: 0,
       height: 5,
     },
-
     elevation: 3,
   },
 

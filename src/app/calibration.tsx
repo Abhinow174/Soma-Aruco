@@ -1,6 +1,7 @@
 import React from "react";
 import {
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -22,86 +23,91 @@ const sensors = [
 export default function CalibrationScreen() {
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.title}>Calibrating sensors</Text>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.card}>
+          <Text style={styles.title}>Calibrating sensors</Text>
+          <Text style={styles.subtitle}>6 of 8 connected</Text>
 
-        <Text style={styles.subtitle}>6 of 8 connected</Text>
-
-        {/* Sensor Grid */}
-        <View style={styles.grid}>
-          {sensors.map((sensor) => (
-            <View
-              key={sensor.id}
-              style={[
-                styles.sensorBox,
-                sensor.connected
-                  ? styles.connectedBox
-                  : styles.disconnectedBox,
-              ]}
-            >
-              <Text
+          <View style={styles.grid}>
+            {sensors.map((sensor) => (
+              <View
+                key={sensor.id}
                 style={[
-                  styles.sensorText,
-                  {
-                    color: sensor.connected ? "#1F5DAA" : "#808080",
-                  },
+                  styles.sensorBox,
+                  sensor.connected
+                    ? styles.connectedBox
+                    : styles.disconnectedBox,
                 ]}
               >
-                {sensor.id}
-              </Text>
-            </View>
-          ))}
+                <Text
+                  style={[
+                    styles.sensorText,
+                    {
+                      color: sensor.connected ? "#1F5DAA" : "#808080",
+                    },
+                  ]}
+                >
+                  {sensor.id}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.circle} />
+
+          <Text style={styles.stepTitle}>Step 1 — T-pose</Text>
+          <Text style={styles.description}>
+            Extend your arms horizontally and hold still.
+          </Text>
+
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => router.push("/live")}
+          >
+            <Text style={styles.buttonText}>Continue</Text>
+          </TouchableOpacity>
         </View>
-
-        {/* Human Placeholder */}
-        <View style={styles.circle} />
-
-        <Text style={styles.stepTitle}>Step 1 — T-pose</Text>
-
-        <Text style={styles.description}>
-          Extend your arms horizontally and hold still.
-        </Text>
-
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => router.push("/live")}
-        >
-          <Text style={styles.buttonText}>Continue</Text>
-        </TouchableOpacity>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
-
-const BOX_SIZE = 110;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F6F6F6",
+  },
+
+  scrollContent: {
     padding: 20,
+    flexGrow: 1,
   },
 
   card: {
     flex: 1,
     backgroundColor: "#FFFFFF",
     borderRadius: 28,
-    paddingHorizontal: 24,
-    paddingTop: 34,
+    paddingHorizontal: 20,
+    paddingTop: 30,
+    paddingBottom: 24,
     alignItems: "center",
   },
 
   title: {
-    fontSize: 42,
+    fontSize: 34,
     fontWeight: "700",
     color: "#111",
+    textAlign: "center",
   },
 
   subtitle: {
-    marginTop: 8,
-    fontSize: 22,
+    marginTop: 6,
+    fontSize: 18,
     color: "#6B6B6B",
-    marginBottom: 28,
+    marginBottom: 24,
   },
 
   grid: {
@@ -109,16 +115,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    marginBottom: 40,
+    marginBottom: 28,
   },
 
   sensorBox: {
-    width: BOX_SIZE,
-    height: BOX_SIZE,
-    borderRadius: 22,
+    width: "22%",
+    aspectRatio: 1,
+    borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 12,
   },
 
   connectedBox: {
@@ -134,48 +140,48 @@ const styles = StyleSheet.create({
   },
 
   sensorText: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: "700",
   },
 
   circle: {
-    width: 240,
-    height: 240,
-    borderRadius: 120,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
     borderWidth: 1,
     borderColor: "#DDDDDD",
-    marginBottom: 48,
+    marginBottom: 24,
   },
 
   stepTitle: {
-    fontSize: 34,
+    fontSize: 26,
     fontWeight: "700",
     color: "#111",
+    textAlign: "center",
   },
 
   description: {
-    marginTop: 14,
+    marginTop: 10,
     textAlign: "center",
-    fontSize: 20,
+    fontSize: 16,
     color: "#555",
-    lineHeight: 30,
-    paddingHorizontal: 20,
+    lineHeight: 24,
+    paddingHorizontal: 16,
+    marginBottom: 24,
   },
 
   button: {
-    marginTop: "auto",
     width: "100%",
-    height: 72,
+    height: 60,
     backgroundColor: "#111",
-    borderRadius: 22,
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 24,
   },
 
   buttonText: {
     color: "#FFF",
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: "700",
   },
 });
