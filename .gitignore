@@ -41,3 +41,14 @@ example
 # generated native folders
 /ios
 /android
+node_modules/
+.expo/
+dist/
+web-build/
+android/.gradle/
+android/app/build/
+android/build/
+*.log
+.DS_Store
+.env
+.env.*
